@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>月费率摊成年化 · 分期手续费、实际年化、提前还清</title>
+<meta name="description" content="把「12 期、月费率 0.75%」摊开成一张逐期票据：每期还款里本金与手续费各多少、手续费合计、折算成年化是多少，以及提前还清是省还是亏。">
+<style>
+:root{
+  --ink:#12303a; --ink2:#3f5b66; --ink3:#6d8590; --line:#d7e2e6;
+  --paper:#f5f2ea; --card:#ffffffee; --teal:#0f6a72; --teal-d:#0b4f56; --orange:#b8560f;
+  --warnbg:#fdf3e6; --okbg:#eef6f1; --rad:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 14px 64px}
+header.top{border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:16px}
+h1{font-size:23px;line-height:1.3;margin:0 0 6px;letter-spacing:.3px}
+.sub{color:var(--ink2);font-size:13.5px}
+.sub b{color:var(--teal-d)}
+.tagline{margin-top:8px;font-size:13px;color:var(--ink3)}
+.layout{display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);gap:16px;align-items:start}
+.layout > *{min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--rad);padding:14px}
+.card h2{font-size:14px;margin:0 0 10px;letter-spacing:.5px;color:var(--ink2);font-weight:700;
+  display:flex;align-items:center;gap:8px}
+.card h2 .n{display:inline-flex;width:18px;height:18px;border-radius:50%;background:var(--ink);color:#fff;
+  font-size:11px;align-items:center;justify-content:center;flex:0 0 auto}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:12.5px;color:var(--ink2);margin-bottom:4px}
+.field .hint{font-size:11.5px;color:var(--ink3);margin-top:3px;line-height:1.45}
+input[type=number],select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:7px;
+  font:inherit;font-size:14px;background:#fff;color:var(--ink)}
+input[type=number]:focus,select:focus{outline:2px solid #0f6a7233;border-color:var(--teal)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chk{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink2);margin:2px 0 8px}
+.chk input{width:16px;height:16px;accent-color:var(--teal)}
+.btnrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+button{font:inherit;font-size:13px;padding:7px 11px;border-radius:7px;border:1px solid var(--line);
+  background:#fff;color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--teal);color:var(--teal-d)}
+button.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+button.primary:hover{background:var(--teal-d);color:#fff}
+button.sm{font-size:12px;padding:5px 9px}
+.err{background:#fdecec;border:1px solid #e8b4b4;color:#8d1f1f;border-radius:8px;padding:9px 11px;margin-bottom:11px;font-size:13px}
+.err ul{margin:5px 0 0;padding-left:18px}
+.hidden{display:none !important}
+
+/* 结论票 */
+.ticket{background:linear-gradient(180deg,#0f6a72,#0b4f56);color:#fff;border-radius:var(--rad);padding:15px 16px;
+  display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.ticket .big{font-size:40px;line-height:1.05;font-weight:800;letter-spacing:-1px}
+.ticket .bigcap{font-size:12.5px;opacity:.85;margin-bottom:2px}
+.ticket .side{font-size:13px;opacity:.95;text-align:right;line-height:1.7}
+.ticket .side b{font-size:15px}
+.oneliner{background:#fff;border:1px solid var(--line);border-top:none;border-radius:0 0 var(--rad) var(--rad);
+  padding:10px 14px;font-size:13.5px;color:var(--ink2);margin-bottom:14px}
+.oneliner b{color:var(--orange)}
+
+/* 口径转化链 */
+.chain{display:flex;flex-wrap:wrap;gap:0;align-items:stretch}
+.step{flex:1 1 150px;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin:4px}
+.step .k{font-size:11.5px;color:var(--ink3)}
+.step .v{font-size:17px;font-weight:700;color:var(--teal-d);margin:2px 0}
+.step .d{font-size:11.5px;color:var(--ink3);line-height:1.4}
+.arrow{align-self:center;color:var(--ink3);font-size:15px;padding:0 1px}
+
+/* 票据 */
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;max-width:100%;min-width:0}
+table{border-collapse:collapse;width:100%;min-width:max-content;font-size:13.5px;font-variant-numeric:tabular-nums}
+table.lad{min-width:0}
+th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:center}
+th{background:#f0ede4;color:var(--ink2);font-weight:600;font-size:12.5px;position:sticky;top:0}
+tbody tr:nth-child(even){background:#fbfaf6}
+td.fee{color:var(--orange)}
+td.pay{font-weight:600}
+tr.now td{background:#e8f2f2 !important;box-shadow:inset 3px 0 0 var(--orange)}
+tr.now td:first-child::after{content:" ← 提前还清";color:var(--orange);font-size:11.5px}
+
+/* 阶梯表 */
+table.lad th:first-child,table.lad td:first-child{text-align:center}
+table.lad td.cur{background:#e8f2f2;font-weight:700;color:var(--teal-d)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px}
+.kv .k{color:var(--ink3)}
+.kv .v{text-align:right;font-variant-numeric:tabular-nums}
+.verdict{border-radius:8px;padding:9px 11px;font-size:13px;margin-top:9px;line-height:1.55}
+.verdict.ok{background:var(--okbg);border:1px solid #bcd9c8}
+.verdict.hurt{background:var(--warnbg);border:1px solid #eccfa8}
+.verdict.neutral{background:#f2f2f0;border:1px solid var(--line)}
+.notes{list-style:none;padding:0;margin:0;font-size:12.5px}
+.notes li{padding:6px 9px;border-radius:7px;margin-bottom:5px;background:#f7f7f4;border:1px solid var(--line);color:var(--ink2)}
+.notes li.warn{background:var(--warnbg);border-color:#eccfa8;color:#7a3d09}
+.checks{display:grid;grid-template-columns:1fr;gap:3px;font-size:12.5px}
+.checks .c{display:flex;gap:7px;align-items:flex-start}
+.checks .m{flex:0 0 auto;width:15px;height:15px;border-radius:50%;font-size:10px;color:#fff;display:flex;
+  align-items:center;justify-content:center;margin-top:3px}
+.checks .m.p{background:#2b7a52}.checks .m.f{background:#b03030}
+.checks .dt{color:var(--ink3);font-variant-numeric:tabular-nums}
+footer.bound{margin-top:18px;border-top:1px solid var(--line);padding-top:12px;font-size:12.5px;color:var(--ink3);line-height:1.7}
+footer.bound b{color:var(--ink2)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.grid2 > *{min-width:0}
+.card{min-width:0}
+.keyrow{overflow-x:auto}
+.scen{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .grid2{grid-template-columns:1fr}
+  .ticket .side{text-align:left}
+  h1{font-size:20px}
+  .ticket .big{font-size:34px}
+  .step{flex:1 1 100%;min-width:0}
+  .arrow{display:none}
+}
+@media (max-width:400px){
+  .wrap{padding:12px 9px 56px}
+  .ticket{padding:12px}
+  .ticket .big{font-size:30px}
+  table{font-size:12.5px}
+  th,td{padding:5px 6px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>月费率摊成年化</h1>
+    <div class="sub">结账页写着「<b>12 期，月费率 0.75%</b>」——这句话摊开，是一张逐期票据：每期付的是什么、手续费一共多少、折成年化到底是多少，以及<b>提前还清是省还是亏</b>。</div>
+    <div class="tagline">全部由你填的数字算出来：不联网、不查任何银行或平台、不内置任何费率表、不推荐任何产品。默认场景是<b>虚构示例</b>。</div>
+  </header>
+
+  <div id="errbox" class="err hidden" role="alert"></div>
+
+  <div class="scen" id="scen"></div>
+
+  <div class="layout">
+    <!-- 左：输入 -->
+    <div>
+      <div class="card">
+        <h2><span class="n">1</span>这笔分期长什么样</h2>
+        <div class="field">
+          <label for="p-principal">分期本金（元）</label>
+          <input type="number" id="p-principal" step="any" min="0.01" max="10000000">
+          <div class="hint">分期所依据的金额。本页假设它等于一次性付清的价格（标价是否被加过价，见右侧「免息也不便宜」）。</div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="p-periods">期数</label>
+            <input type="number" id="p-periods" step="1" min="1" max="60">
+          </div>
+          <div class="field">
+            <label for="p-rate">月费率（%/月）</label>
+            <input type="number" id="p-rate" step="any" min="0" max="10">
+          </div>
+        </div>
+        <div class="field">
+          <label for="p-method">还款额怎么算 / 手续费什么时候交</label>
+          <select id="p-method">
+            <option value="equal_installment">每期还款额恒定（账单上最常见的形状）</option>
+            <option value="equal_principal">每期本金相同 + 每期收手续费</option>
+            <option value="fee_first">手续费首期付清（第 1 期一次交）</option>
+          </select>
+          <div class="hint" id="h-method"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2><span class="n">2</span>提前还清</h2>
+        <div class="chk"><input type="checkbox" id="p-early-on"><label for="p-early-on" style="margin:0">算一下提前还清</label></div>
+        <div class="row2">
+          <div class="field">
+            <label for="p-early-at">第几期还清</label>
+            <input type="number" id="p-early-at" step="1" min="1" max="59">
+          </div>
+          <div class="field">
+            <label for="p-early-fee">违约金（占剩余本金 %）</label>
+            <input type="number" id="p-early-fee" step="any" min="0" max="20">
+          </div>
+        </div>
+        <div class="hint">还清时点 = 第 k 期账单日：付掉第 k 期正常还款 + 剩余本金 + 违约金，之后不再还款。</div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2><span class="n">3</span>免息也不便宜？</h2>
+        <div class="row2">
+          <div class="field">
+            <label for="p-upfront">一次性付清价（元）</label>
+            <input type="number" id="p-upfront" step="any" min="0" max="10000000">
+          </div>
+          <div class="field">
+            <label for="p-plan">分期标价（元）</label>
+            <input type="number" id="p-plan" step="any" min="0" max="10000000">
+          </div>
+        </div>
+        <div class="field">
+          <label for="p-cash">你的现金收益率（%/年）</label>
+          <input type="number" id="p-cash" step="any" min="0" max="30">
+          <div class="hint">这笔本金留在你手里、分期期间能赚多少。填 0 就是「钱躺着不动」。</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2><span class="n">4</span>存、换、导出</h2>
+        <div class="btnrow">
+          <button class="primary" id="b-save">保存到本机</button>
+          <button id="b-reset">恢复默认</button>
+          <button id="b-import">导入备份</button>
+          <input type="file" id="f-import" accept=".json,application/json" class="hidden">
+        </div>
+        <div class="btnrow">
+          <button class="sm" id="b-csv">下载 CSV</button>
+          <button class="sm" id="b-md">下载 Markdown</button>
+          <button class="sm" id="b-json">导出 JSON 备份</button>
+          <button class="sm" id="b-png">下载结果卡 PNG</button>
+        </div>
+        <div class="hint" id="saveinfo" style="margin-top:7px"></div>
+      </div>
+    </div>
+
+    <!-- 右：结果 -->
+    <div>
+      <div class="ticket" id="ticket">
+        <div>
+          <div class="bigcap">实际年化（复利口径）</div>
+          <div class="big" id="t-apr">—</div>
+        </div>
+        <div class="side">
+          <div>月费率 × 12 的直算：<b id="t-naive">—</b></div>
+          <div>教训比值：<b id="t-ratio">—</b></div>
+          <div>每期还款 <b id="t-pay">—</b> · 手续费合计 <b id="t-fee">—</b></div>
+        </div>
+      </div>
+      <div class="oneliner" id="t-oneliner">—</div>
+
+      <div class="card">
+        <h2><span class="n">A</span>口径转化链：0.75% 是怎么变成年化的</h2>
+        <div class="chain" id="chain"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2><span class="n">B</span>逐期票据</h2>
+        <div class="tblwrap"><table id="t-sched">
+          <thead><tr><th>期数</th><th>本期还款</th><th>其中本金</th><th>其中手续费</th><th>剩余本金</th></tr></thead>
+          <tbody></tbody>
+          <tfoot><tr><th>合计</th><td class="pay" id="t-sum-pay">—</td><td id="t-sum-prin">—</td><td class="fee" id="t-sum-fee">—</td><td>—</td></tr></tfoot>
+        </table></div>
+      </div>
+
+      <div class="grid2" style="margin-top:14px">
+        <div class="card">
+          <h2><span class="n">C</span>月费率阶梯（同本金同期数）</h2>
+          <div class="tblwrap"><table class="lad" id="t-ladder">
+            <thead><tr><th>月费率</th><th>×12 直算</th><th>实际年化</th><th>手续费</th><th>比值</th></tr></thead>
+            <tbody></tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <h2><span class="n">D</span>期数阶梯（同月费率）</h2>
+          <div class="tblwrap"><table class="lad" id="t-terms">
+            <thead><tr><th>期数</th><th>每期还款</th><th>手续费合计</th><th>实际年化</th></tr></thead>
+            <tbody></tbody>
+          </table></div>
+          <div class="verdict neutral" id="term-note" style="margin-top:9px"></div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:14px">
+        <div class="card">
+          <h2><span class="n">E</span>提前还清</h2>
+          <div id="early-body"><div class="verdict neutral">勾上左侧「算一下提前还清」就出结果。</div></div>
+        </div>
+        <div class="card">
+          <h2><span class="n">F</span>免息也不便宜</h2>
+          <div id="free-body"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2><span class="n">G</span>模型提示与自检</h2>
+        <ul class="notes" id="notes"></ul>
+        <div style="margin-top:9px;font-size:12.5px;color:var(--ink2)" id="sc-head">—</div>
+        <div class="checks" id="sc-body" style="margin-top:7px"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="bound">
+    <b>公式（与页面数字同一套）</b>：每期还款额 A =（本金 + 手续费总额）÷ 期数（等额本息口径）；手续费总额 = 本金 × 月费率 × 期数；
+    实际月利率 i 是 Σ<sub>t=1..n</sub> A ÷ (1+i)<sup>t</sup> = 本金 的解（二分法）；<b>实际年化 = (1+i)<sup>12</sup> − 1</b>；
+    对照用的<b>比例直算 = 月费率 × 12</b>。<br>
+    <b>本页不包含</b>：服务费 / 保险费 / 会员费 / 平台佣金等第三方费用；逾期罚息与征信影响；额度被占用的机会成本；
+    商家把手续费加进标价而你看不到的部分（只能按标价差反解）；浮动费率与中途改期；跨币种与汇率；税务处理。<br>
+    <b>本页不做</b>：不推荐任何分期产品、不比较任何平台、不给「该不该分期」的建议、不判断任何产品合法与否；
+    不联网、不内置任何费率表、不声称任何地区的费率现状。所有默认数字与内置场景都是<b>虚构示例</b>，不代表任何真实产品、银行或平台的费率。
+  </footer>
+</div>
+
+<script>
+/*CORE*/
+</script>
+<script>
+/*UI*/
+</script>
+</body>
+</html>
